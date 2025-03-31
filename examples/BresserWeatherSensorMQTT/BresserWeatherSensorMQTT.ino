@@ -159,9 +159,9 @@
 #define DISCOVERY_INTERVAL 30 // Home Assistant auto discovery interval [min]
 #define AWAKE_TIMEOUT 300000  // maximum time until sketch is forced to sleep [ms]
 #define SLEEP_INTERVAL 300000 // sleep interval [ms]
-#define WIFI_RETRIES 10       // WiFi connection retries
-#define WIFI_DELAY 1000       // Delay between connection attempts [ms]
-#define SLEEP_EN true         // enable sleep mode (see notes above!)
+#define WIFI_RETRIES 50       // WiFi connection retries
+#define WIFI_DELAY 100       // Delay between connection attempts [ms]
+#define SLEEP_EN false         // enable sleep mode (see notes above!)
 //#define USE_SECUREWIFI        // use secure WIFI
 #define USE_WIFI // use non-secure WIFI
 
@@ -178,7 +178,7 @@ const char *TZ_INFO = "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00";
 //#define RX_FLAGS (DATA_COMPLETE | DATA_ALL_SLOTS)
 
 // Enable to debug MQTT connection; will generate synthetic sensor data.
-// #define _DEBUG_MQTT_
+#define _DEBUG_MQTT_
 
 // Generate sensor data to test collecting data from multiple sources
 // #define GEN_SENSOR_DATA
@@ -190,13 +190,13 @@ const char *TZ_INFO = "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00";
 #endif
 
 #if defined(ESP32)
-#include <WiFi.h>
-#if defined(USE_WIFI)
-#elif defined(USE_SECUREWIFI)
-#include <NetworkClientSecure.h>
-#endif
+ #include <WiFi.h>
+ #if defined(USE_WIFI)
+ #elif defined(USE_SECUREWIFI)
+  #include <NetworkClientSecure.h>
+ #endif
 #elif defined(ESP8266)
-#include <ESP8266WiFi.h>
+ #include <ESP8266WiFi.h>
 #endif
 
 #include <string>
@@ -236,16 +236,16 @@ std::vector<SensorMap> sensor_map = {
 #include "secrets.h"
 
 #ifndef SECRETS
-const char ssid[] = "WiFiSSID";
-const char pass[] = "WiFiPassword";
+const char ssid[] = "reglezvoscanaux";
+const char pass[] = "marieeolivier";
 
-const char HOSTNAME[] = "ESPWeather";
+const char HOSTNAME[] = "Bresserop";
 #define APPEND_CHIP_ID
 
-#define MQTT_PORT 8883 // checked by pre-processor!
-const char MQTT_HOST[] = "xxx.yyy.zzz.com";
-const char MQTT_USER[] = ""; // leave blank if no credentials used
-const char MQTT_PASS[] = ""; // leave blank if no credentials used
+#define MQTT_PORT 1883 // checked by pre-processor!
+const char MQTT_HOST[] = "192.168.31.30";
+const char MQTT_USER[] = "bresser"; // leave blank if no credentials used
+const char MQTT_PASS[] = "bresser"; // leave blank if no credentials used
 
 #ifdef CHECK_CA_ROOT
 static const char digicert[] PROGMEM = R"EOF(
@@ -401,13 +401,14 @@ void printDateTime(void)
 void wifi_wait(int wifi_retries, int wifi_delay)
 {
     int count = 0;
+
     while (WiFi.status() != WL_CONNECTED)
     {
         Serial.print(".");
         delay(wifi_delay);
         if (++count == wifi_retries)
         {
-            log_e("\nWiFi connection timed out, will restart after %d s", SLEEP_INTERVAL / 1000);
+           log_e("\nWiFi connection timed out, will restart after %d s", SLEEP_INTERVAL / 1000);
             ESP.deepSleep(SLEEP_INTERVAL * 1000);
         }
     }
@@ -424,8 +425,13 @@ void mqtt_setup(void)
     WiFi.hostname(Hostname.c_str());
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
+   // Serial.println("\nConnecting");
+   // Serial.printf("%s %s\n",ssid, pass);
+
     wifi_wait(WIFI_RETRIES, WIFI_DELAY);
     log_i("connected!");
+    Serial.print("Local ESP32 IP: ");
+    Serial.println(WiFi.localIP());
 
     // Note: TLS security and rain/lightning statistics need correct time
     log_i("Setting time using SNTP");
@@ -521,8 +527,11 @@ void mqtt_connect(void)
 void setup()
 {
     Serial.begin(115200);
+      delay(1000);
     Serial.setDebugOutput(true);
+    Serial.println("Ca demarre");
     initBoard();
+
     log_i("\n\n%s\n", sketch_id);
 
     // Set time zone
@@ -560,9 +569,10 @@ void setup()
     mqttSubGetExc = Hostname + "/" + mqttSubGetExc;
     mqttSubSetInc = Hostname + "/" + mqttSubSetInc;
     mqttSubSetExc = Hostname + "/" + mqttSubSetExc;
-
+Serial.println("par la\n");
     weatherSensor.begin();
     weatherSensor.setSensorsCfg(MAX_SENSORS, RX_FLAGS);
+    Serial.println("Ici\n");
     mqtt_setup();
 }
 
@@ -579,6 +589,7 @@ void clientLoopWrapper(void)
 //
 void loop()
 {
+    Serial.printf("%s %s\n",ssid, pass);
     if (WiFi.status() != WL_CONNECTED)
     {
         Serial.print(F("Checking wifi"));
@@ -587,6 +598,7 @@ void loop()
             WiFi.begin(ssid, pass);
             Serial.print(".");
             delay(10);
+            Serial.print("\n");
         }
         Serial.println(F("connected"));
     }

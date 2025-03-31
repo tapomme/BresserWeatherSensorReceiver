@@ -63,8 +63,34 @@
 #include "WeatherSensor.h"
 #include "InitBoard.h"
 
+
+#include "HT_SSD1306Wire.h"
+
+
+static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
+
+
 WeatherSensor ws;
 
+void VextON(void)
+{
+  pinMode(Vext,OUTPUT);
+  digitalWrite(Vext, LOW);
+}
+
+void VextOFF(void) //Vext default OFF
+{
+  pinMode(Vext,OUTPUT);
+  digitalWrite(Vext, HIGH);
+}
+
+
+void drawTextFlowDemo() {
+    display.setFont(ArialMT_Plain_10);
+    display.setTextAlignment(TEXT_ALIGN_LEFT);
+    display.drawStringMaxWidth(0, 0, 128,
+      "Lorem ipsum\n dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore." );
+}
 
 void setup() {
     Serial.begin(115200);
@@ -72,6 +98,18 @@ void setup() {
 
     Serial.printf("Starting execution...\n");
     initBoard();
+    Serial.print("allummage ecran\n"); 
+     VextON();
+  delay(100);
+
+  // Initialising the UI will init the display too.
+  display.init();
+
+  display.setFont(ArialMT_Plain_10);
+  display.drawString(0, 0, "Starting\n");
+  display.display();
+  display.clear();
+  delay(1000);
     ws.begin();
 }
 
@@ -80,10 +118,17 @@ void loop()
 {   
     // This example uses only a single slot in the sensor data array
     int const i=0;
-
+char str[60];
     // Clear all sensor data
     ws.clearSlots();
 
+    // display.clear();
+
+
+
+
+display.drawString(0, 0, ".");
+//drawTextFlowDemo() ;
     // Tries to receive radio message (non-blocking) and to decode it.
     // Timeout occurs after a small multiple of expected time-on-air.
     int decode_status = ws.getMessage();
@@ -172,6 +217,8 @@ void loop()
         else if (ws.sensor[i].s_type == SENSOR_TYPE_SOIL) {
             Serial.printf("Temp: [%5.1fC] ", ws.sensor[i].soil.temp_c);
             Serial.printf("Moisture: [%2d%%]\n", ws.sensor[i].soil.moisture);
+            sprintf(str,"Temp: [%5.1fC] Moisture: [%2d%%]\n", ws.sensor[i].soil.temp_c,ws.sensor[i].soil.moisture);
+  display.drawString(0, 0, str);
 
         } else {
             // Any other (weather-like) sensor is very similar
@@ -233,5 +280,6 @@ void loop()
       }
     
     } // if (decode_status == DECODE_OK)
+    display.display();
     delay(100);
 } // loop()
