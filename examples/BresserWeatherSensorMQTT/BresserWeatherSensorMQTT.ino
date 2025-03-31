@@ -149,6 +149,16 @@
 
 #include <Arduino.h>
 
+
+#include <Wire.h>               
+#include "HT_SSD1306Wire.h"
+
+
+static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
+
+
+
+
 // BEGIN User specific options
 #define LED_EN                // Enable LED indicating successful data reception
 #define LED_GPIO 2            // LED pin
@@ -236,8 +246,10 @@ std::vector<SensorMap> sensor_map = {
 #include "secrets.h"
 
 #ifndef SECRETS
-const char ssid[] = "reglezvoscanaux";
-const char pass[] = "marieeolivier";
+const char ssid[] = "ECM";
+//const char ssid[] = "reglezvoscanaux";
+//const char pass[] = "marieeolivier";
+const char pass[] = "";
 
 const char HOSTNAME[] = "Bresserop";
 #define APPEND_CHIP_ID
@@ -350,7 +362,7 @@ BearSSL::WiFiClientSecure net;
 //
 MQTTClient client(PAYLOAD_SIZE);
 
-uint32_t lastMillis = 0;
+uint32_t lastMillis2 = 0;
 uint32_t statusPublishPreviousMillis = 0;
 #if defined(AUTO_DISCOVERY)
 uint32_t discoveryPublishPreviousMillis = 0;
@@ -421,17 +433,28 @@ void wifi_wait(int wifi_retries, int wifi_delay)
  */
 void mqtt_setup(void)
 {
+  char str[128];
     log_i("Attempting to connect to SSID: %s", ssid);
     WiFi.hostname(Hostname.c_str());
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
-   // Serial.println("\nConnecting");
-   // Serial.printf("%s %s\n",ssid, pass);
+   Serial.println("\nConnecting");
+   Serial.printf("%s %s\n",ssid, pass);
+   
+    sprintf(str,"setup %s %s",ssid,pass);
+    display.drawString(40,40,str );
+  
+
 
     wifi_wait(WIFI_RETRIES, WIFI_DELAY);
     log_i("connected!");
     Serial.print("Local ESP32 IP: ");
     Serial.println(WiFi.localIP());
+    String ipaddr=WiFi.localIP().toString(); 
+      
+        Serial.println(WiFi.localIP());
+        display.drawString(30,30,ipaddr);
+        display.display();
 
     // Note: TLS security and rain/lightning statistics need correct time
     log_i("Setting time using SNTP");
@@ -521,6 +544,17 @@ void mqtt_connect(void)
     client.publish(mqttPubStatus, "online");
 }
 
+void VextON(void)
+{
+  pinMode(Vext,OUTPUT);
+  digitalWrite(Vext, LOW);
+}
+
+void VextOFF(void) //Vext default OFF
+{
+  pinMode(Vext,OUTPUT);
+  digitalWrite(Vext, HIGH);
+}
 //
 // Setup
 //
@@ -530,6 +564,23 @@ void setup()
       delay(1000);
     Serial.setDebugOutput(true);
     Serial.println("Ca demarre");
+
+  VextON();
+
+
+  // Initialising the UI will init the display too.
+  display.init();
+  display.clear();
+
+  display.setFont(ArialMT_Plain_10);
+  display.drawString(0, 0, "Ca demarre");
+    display.display();
+
+  //display.display();
+ display.drawString(10, 10, "GO !!!!");
+    display.display();
+      delay(100);
+
     initBoard();
 
     log_i("\n\n%s\n", sketch_id);
@@ -589,7 +640,16 @@ void clientLoopWrapper(void)
 //
 void loop()
 {
+ 
+char str[128];
+
+  Serial.print("x");
+    display.clear();
     Serial.printf("%s %s\n",ssid, pass);
+    sprintf(str,"%s %s",ssid,pass);
+    display.drawString(2,2,str );
+    display.display();
+    delay(100);
     if (WiFi.status() != WL_CONNECTED)
     {
         Serial.print(F("Checking wifi"));
@@ -601,6 +661,11 @@ void loop()
             Serial.print("\n");
         }
         Serial.println(F("connected"));
+        String IPADDR=WiFi.localIP().toString();
+        //sprintf(str,"%s\n",IPADDR);
+        Serial.println(WiFi.localIP());
+        display.drawString(30,30,IPADDR);
+        display.display();
     }
     else
     {
@@ -615,6 +680,7 @@ void loop()
     }
 
     const uint32_t currentMillis = millis();
+  //  display.drawString(10,10,String(currentMillis) );
     if (currentMillis - statusPublishPreviousMillis >= STATUS_INTERVAL)
     {
         // publish a status message @STATUS_INTERVAL
@@ -653,9 +719,9 @@ void loop()
 #endif
 
     // publish a data message @DATA_INTERVAL
-    if (millis() - lastMillis > DATA_INTERVAL)
+    if (millis() - lastMillis2 > DATA_INTERVAL)
     {
-        lastMillis = millis();
+        lastMillis2 = millis();
         if (decode_ok)
         {
             publishWeatherdata(false);
@@ -707,4 +773,6 @@ void loop()
         weatherSensor.sleep();
         ESP.deepSleep(SLEEP_INTERVAL * 1000);
     }
+    delay(100);
+    display.display();
 } // loop()
